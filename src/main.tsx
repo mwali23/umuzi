@@ -126,13 +126,14 @@ function Login() {
           email: email.trim(),
           options: {
             shouldCreateUser: true,
+            emailRedirectTo: `${window.location.origin}/`,
             captchaToken: captcha || undefined,
           },
         });
         if (error) throw error;
         setSent(true);
         setMessage(
-          "Check your inbox for a one-time code. It may take a minute.",
+          "Check your inbox and open the sign-in link. If the email includes a code, you can enter it here instead.",
         );
       }
     } catch (error) {
@@ -166,7 +167,7 @@ function Login() {
         <h2>{sent ? "Check your email" : "Welcome to Umuzi"}</h2>
         <p>
           {sent
-            ? `Enter the code sent to ${email}.`
+            ? `Open the link sent to ${email}. If you received a code, enter it below.`
             : "Sign up or sign in with your email. No password to remember."}
         </p>
         <form onSubmit={submit}>
@@ -184,7 +185,7 @@ function Login() {
           </label>
           {sent && (
             <label>
-              One-time code
+              One-time code (only if your email includes one)
               <input
                 name="code"
                 inputMode="numeric"
@@ -207,8 +208,8 @@ function Login() {
             {busy
               ? "Please wait…"
               : sent
-                ? "Verify & continue"
-                : "Email me a code"}
+                ? "Verify code"
+                : "Email me a sign-in link"}
           </button>
           {sent && (
             <button
