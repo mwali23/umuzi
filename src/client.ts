@@ -12,8 +12,9 @@ export const supabase = configured
         storage: window.sessionStorage,
         persistSession: true,
         autoRefreshToken: true,
-        detectSessionInUrl: false,
-        flowType: "pkce",
+        // The default Supabase emails link back to this browser-only app.
+        detectSessionInUrl: true,
+        flowType: "implicit",
       },
     })
   : null;

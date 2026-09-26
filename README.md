@@ -6,11 +6,11 @@ A small, private family archive. Open-source code; private family data.
 
 ## The family journey
 
-Email code → request account approval → administrator approves → search the tree → request a profile claim → administrator verifies the claim.
+Email sign-in link (or code when configured) → request account approval → administrator approves → search the tree → request a profile claim → administrator verifies the claim.
 
 An account and a person record are deliberately different things. Multiple relatives can connect an existing person without creating another person. Only an approved claimant or verified administrator can edit that person's profile. Approved members can add people and propose connections; administrators review connections before they appear.
 
-- Simple email-code signup and login, no password to remember.
+- Simple email-link signup and login, with optional email-code verification when configured; no password to remember.
 - Pending, approved, declined, and suspended membership states.
 - Separate, revocable profile claims; one approved account per person and one person per account.
 - Search names, birthplaces, communities, and occupations.
