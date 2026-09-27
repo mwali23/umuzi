@@ -103,8 +103,6 @@ function Captcha({
 }
 
 function Login() {
-  const [email, setEmail] = useState("");
-  const [sent, setSent] = useState(false);
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState("");
   const [captcha, setCaptcha] = useState("");
@@ -114,31 +112,17 @@ function Login() {
     setBusy(true);
     setMessage("");
     try {
-      if (sent) {
-        const { error } = await supabase!.auth.verifyOtp({
-          email: email.trim(),
-          token: String(fields.code).trim(),
-          type: "email",
-        });
-        if (error) throw error;
-      } else {
-        const { error } = await supabase!.auth.signInWithOtp({
-          email: email.trim(),
-          options: {
-            shouldCreateUser: true,
-            emailRedirectTo: `${window.location.origin}/`,
-            captchaToken: captcha || undefined,
-          },
-        });
-        if (error) throw error;
-        setSent(true);
-        setMessage(
-          "Check your inbox and open the sign-in link. If the email includes a code, you can enter it here instead.",
-        );
-      }
+      const { error } = await supabase!.auth.signInWithPassword({
+        email: String(fields.email).trim(),
+        password: String(fields.password),
+        options: { captchaToken: captcha || undefined },
+      });
+      if (error) throw error;
     } catch (error) {
       setMessage(
-        error instanceof Error ? error.message : "Sign-in failed. Try again.",
+        error instanceof Error
+          ? error.message
+          : "Sign-in failed. Check your email and password.",
       );
     } finally {
       setBusy(false);
@@ -164,76 +148,135 @@ function Login() {
         <div className="welcome-rule">Private family archive · Umuzi</div>
       </section>
       <section className="card login">
-        <h2>{sent ? "Check your email" : "Welcome to Umuzi"}</h2>
+        <h2>Welcome to Umuzi</h2>
         <p>
-          {sent
-            ? `Open the link sent to ${email}. If you received a code, enter it below.`
-            : "Sign up or sign in with your email. No password to remember."}
+          Sign in with the email address and password provided by your family
+          administrator. No email link is needed to sign in.
         </p>
         <form onSubmit={submit}>
           <label>
             Email address
             <input
+              name="email"
               type="email"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
               required
-              autoComplete="email"
+              autoComplete="username"
               maxLength={254}
-              disabled={sent || busy}
+              disabled={busy}
             />
           </label>
-          {sent && (
-            <label>
-              One-time code (only if your email includes one)
-              <input
-                name="code"
-                inputMode="numeric"
-                autoComplete="one-time-code"
-                pattern="[0-9]{6,10}"
-                maxLength={10}
-                required
-                autoFocus
-              />
-            </label>
-          )}
-          {!sent && <Captcha onToken={setCaptcha} reset={reset} />}
+          <label>
+            Password
+            <input
+              name="password"
+              type="password"
+              required
+              autoComplete="current-password"
+              disabled={busy}
+            />
+          </label>
+          <Captcha onToken={setCaptcha} reset={reset} />
           <button
             className="primary"
-            disabled={
-              busy ||
-              (!sent && !!import.meta.env.VITE_TURNSTILE_SITE_KEY && !captcha)
-            }
+            disabled={busy || (!!import.meta.env.VITE_TURNSTILE_SITE_KEY && !captcha)}
           >
-            {busy
-              ? "Please wait…"
-              : sent
-                ? "Verify code"
-                : "Email me a sign-in link"}
+            {busy ? "Please wait…" : "Sign in"}
           </button>
-          {sent && (
-            <button
-              type="button"
-              className="text-button"
-              onClick={() => {
-                setSent(false);
-                setMessage("");
-              }}
-            >
-              Use another email or resend
-            </button>
-          )}
         </form>
         <p role="status" className="notice">
           {message}
         </p>
         <p className="fine">
-          New accounts need a family administrator’s approval before seeing
-          anyone’s information. Signing up does not automatically claim a
-          person’s profile.
+          Need an account or forgot your password? Contact your family
+          administrator directly. New accounts cannot see the tree until
+          approved, and signing in does not claim a person’s profile.
         </p>
       </section>
     </main>
+  );
+}
+
+function PasswordSettings({ close }: { close: () => void }) {
+  const [busy, setBusy] = useState(false);
+  const [message, setMessage] = useState("");
+  async function submit(e: FormEvent<HTMLFormElement>) {
+    const form = e.currentTarget;
+    const fields = values(e);
+    const currentPassword = String(fields.currentPassword);
+    const newPassword = String(fields.newPassword);
+    const confirmation = String(fields.confirmation);
+    if (newPassword !== confirmation) {
+      setMessage("The new passwords do not match.");
+      return;
+    }
+    if (newPassword === currentPassword) {
+      setMessage("Choose a different password.");
+      return;
+    }
+    setBusy(true);
+    setMessage("");
+    try {
+      const { error } = await supabase!.auth.updateUser({
+        password: newPassword,
+        current_password: currentPassword,
+      });
+      if (error) throw error;
+      form.reset();
+      setMessage("Password changed. Keep it in your password manager.");
+    } catch (error) {
+      setMessage(
+        error instanceof Error ? error.message : "Password was not changed.",
+      );
+    } finally {
+      setBusy(false);
+    }
+  }
+  return (
+    <section className="card password-settings">
+      <h2>Change password</h2>
+      <p>Replace a temporary password after your first sign-in.</p>
+      <form onSubmit={submit}>
+        <label>
+          Current password
+          <input
+            name="currentPassword"
+            type="password"
+            autoComplete="current-password"
+            required
+            disabled={busy}
+          />
+        </label>
+        <label>
+          New password
+          <input
+            name="newPassword"
+            type="password"
+            autoComplete="new-password"
+            minLength={12}
+            required
+            disabled={busy}
+          />
+        </label>
+        <label>
+          Confirm new password
+          <input
+            name="confirmation"
+            type="password"
+            autoComplete="new-password"
+            minLength={12}
+            required
+            disabled={busy}
+          />
+        </label>
+        <button className="primary" disabled={busy}>
+          {busy ? "Please wait…" : "Save new password"}
+        </button>
+        <button type="button" onClick={close} disabled={busy}>
+          Close
+        </button>
+      </form>
+      <p role="status" className="notice">{message}</p>
+    </section>
   );
 }
 
@@ -1160,6 +1203,7 @@ function App() {
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
+  const [showPasswordSettings, setShowPasswordSettings] = useState(false);
   const [view, setView] = useState("tree");
   const [query, setQuery] = useState("");
   const [selected, setSelected] = useState("");
@@ -1208,6 +1252,7 @@ function App() {
         setSnapshot(null);
         setForm(null);
         setSelected("");
+        setShowPasswordSettings(false);
       }
     });
     return () => data.subscription.unsubscribe();
@@ -1274,6 +1319,12 @@ function App() {
             <span>
               {snapshot?.membership?.display_name || "Family account"}
             </span>
+            <button
+              aria-expanded={showPasswordSettings}
+              onClick={() => setShowPasswordSettings((open) => !open)}
+            >
+              Password
+            </button>
             <button onClick={() => void signOut()}>Sign out</button>
           </div>
         )}
@@ -1300,8 +1351,8 @@ function App() {
               settings.
             </li>
             <li>
-              Follow the deployment guide to configure email sign-in and the
-              first administrator.
+              Follow the deployment guide to configure invite-only password
+              sign-in and the first administrator.
             </li>
           </ol>
           <p className="fine">
@@ -1316,6 +1367,9 @@ function App() {
         <Login />
       ) : (
         <main className="workspace">
+          {showPasswordSettings && (
+            <PasswordSettings close={() => setShowPasswordSettings(false)} />
+          )}
           {error && (
             <div className="error" role="alert">
               {error}

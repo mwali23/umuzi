@@ -7,14 +7,14 @@ Umuzi is an MVP with layered safeguards, not a security certification or a promi
 | Actor                                    | Permitted access                                                                                                              |
 | ---------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------- |
 | Anonymous visitor                        | Static sign-in page only; no database records or RPC execution                                                                |
-| Verified, unapproved account             | Request membership; read its own approval state                                                                               |
+| Admin-provisioned, unapproved account     | Request membership; read its own approval state                                                                               |
 | Approved member                          | Read shared people/approved connections; create people; propose connections; request one pending profile claim                |
 | Approved claimant                        | Above, plus editing their linked person only                                                                                  |
-| Admin with email sign-in only            | Ordinary member capabilities; no admin queue or medical data                                                                  |
+| Admin with password sign-in only          | Ordinary member capabilities; no admin queue or medical data                                                                  |
 | Admin with verified authenticator (AAL2) | Approvals, claims, relationship decisions, role delegation, all profile edits, restricted death information, activity history |
 | Supabase project/database owner          | Infrastructure-level access, recovery, migrations; protect separately with MFA and least privilege                            |
 
-Authentication proves control of an email account, not family membership or identity. Admins must verify membership and profile claims outside the app using relatives they already trust. An approved account does not automatically claim a matching name. Trusted administrators can approve their own claims; administrator trust is an explicit boundary of this single-family MVP.
+During the invite-only pilot, password sign-in proves possession of account credentials, **not control of the email address or family identity**. A project owner manually provisions and confirms Auth accounts only after verifying each relative through a trusted out-of-band channel. Admins must separately verify membership and profile claims using relatives they already trust. An approved account does not automatically claim a matching name. Trusted administrators can approve their own claims; administrator trust is an explicit boundary of this single-family MVP.
 
 RLS is enabled on every application table. Browser roles have no direct write grants. `public.umuzi` is a security-invoker wrapper; the guarded implementation lives in `private`, which must not be an exposed API schema. Privileged functions pin an empty `search_path` and fully qualify tables. Helpers cannot promote accounts. Roles come from the protected membership table, never user-editable auth metadata.
 
@@ -26,6 +26,8 @@ Member status is looked up on each request, not copied into a long-lived JWT rol
 
 - Public Supabase URL and publishable key are expected to be visible. RLS and grants protect records, not key obscurity.
 - No service-role key, database password, SMTP password, or provider access token belongs in browser code, Vercel's `VITE_` variables, or Git history.
+- Public self-sign-up must be disabled in Supabase Auth settings, not merely hidden in the UI. Keep email confirmations enabled for any future self-sign-up; admin-confirming an invite-only account is an operational trust decision, not proof of mailbox ownership.
+- Password reset by email is unavailable until reliable SMTP is configured. A project owner must verify the person out of band and reset access through Supabase's Auth admin controls. Never share a reusable administrator account or send a temporary password in a public channel.
 - Sessions are stored in browser `sessionStorage`, not long-lived localStorage. Sign out on shared devices. Tokens are JavaScript-readable: a successful XSS could steal an active session. Static hosting, escaped React text (no raw HTML), no third-party analytics, dependency updates, and CSP reduce but do not eliminate this risk. Closing/restoring browser windows can have browser-specific session behavior.
 - Only the public Turnstile widget is loaded from a third-party script provider. Its private key belongs in Supabase Auth settings. Auth rate limiting and CAPTCHA are deployment requirements.
 - API calls use bearer tokens, not cross-site cookies. Umuzi has no cookie-authenticated custom mutation endpoints. Hosting must serve HTTPS and the configured security headers.

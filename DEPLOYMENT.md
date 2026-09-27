@@ -14,22 +14,15 @@ No Supabase secret or Vercel token is required in GitHub Actions. Never put data
 2. In the SQL editor, run `supabase/migrations/202609250001_umuzi.sql` once. It creates the tables, permissions, approval/claim functions, and audit trail in one transaction. If tables already exist, stop and review a migration plan rather than deleting them or rerunning the initial schema.
 3. In API settings, keep the exposed schema as `public`. **Do not expose the `private` schema.** There are no buckets or public storage assets to configure.
 4. Copy the project URL and the **publishable** key (`sb_publishable_…`) for Vercel. These are intentionally public identifiers. The app rejects service-role/secret keys. The database password and `sb_secret_…`/service-role keys must remain private and are not needed by Umuzi's frontend.
-5. Keep email authentication enabled. Disable anonymous sign-in and unused providers. Require verified email. Enable TOTP multi-factor authentication; Umuzi requires AAL2 for admin actions and restricted data.
+5. Keep the **Email** auth provider enabled for email-and-password login. Keep **Confirm Email** on, but turn **Allow new users to sign up** off in Auth settings. Disable anonymous sign-in and unused providers. An owner will manually confirm each invited account only after verifying the person out of band. Enable TOTP multi-factor authentication; Umuzi requires AAL2 for admin actions and restricted data. Do not turn off email confirmation to work around broken SMTP: that would implicitly mark arbitrary self-sign-ups as confirmed.
 
-## 3. Configure email and bot protection
+## 3. Invite-only accounts and bot protection
 
-1. For an owner-only pilot, Supabase's default email sender can send its standard confirmation or magic link to an address on the Supabase project team. It cannot email relatives outside the project team. Set the production Site URL in step 4 before requesting a new link. Do not add relatives to the Supabase project team to work around this limit.
-2. Before inviting relatives, configure custom SMTP in Supabase with a sender you control and the mail provider's recommended authentication. Enter SMTP credentials only in the Supabase dashboard. The default link template works with Umuzi; optionally change the **Magic Link** email template to include a code as well:
-
-```html
-<h2>Your Umuzi sign-in code</h2>
-<p>Enter this code in Umuzi: {{ .Token }}</p>
-<p>If you did not request this email, you can ignore it.</p>
-```
-
-3. Set a short sign-in-link/code expiry (for example 10 minutes) and appropriate authentication rate limits. Test delivery and expiry, including spam folders. The default Supabase mail service is intended for limited testing and restricts recipients; configure SMTP before inviting relatives. See [SMTP documentation](https://supabase.com/docs/guides/auth/auth-smtp) and [email authentication](https://supabase.com/docs/guides/auth/auth-email-passwordless).
-4. Create a Cloudflare Turnstile widget for the production domain. Set its **secret key in Supabase Auth's CAPTCHA settings**, not Vercel or GitHub. Enable CAPTCHA there. Set only its public site key in Vercel as `VITE_TURNSTILE_SITE_KEY`. Use a separate test widget for localhost. Do not turn CAPTCHA off just because a deployment has a configuration error.
-5. Protect Supabase, Vercel, GitHub, and your email provider accounts with MFA. Do not share administrator accounts.
+1. In Supabase Authentication → Users, use **Add user / Create user** to make a separate account for each person with their real email address and a unique, randomly generated temporary password of at least 16 characters. Do **not** choose **Send invitation**: that requires the broken email path. If that option is unavailable, use the [Auth Admin `createUser` API](https://supabase.com/docs/reference/javascript/auth-admin-createuser) only from a trusted private server or script, never from the browser or a Vercel `VITE_` variable. Never edit `auth.users.encrypted_password` with SQL.
+2. Confirm an account administratively only after you have identified the relative by a trusted phone call or other out-of-band method. A manually confirmed account is allowed to sign in but its email address has **not** been verified by a confirmation link. Give the temporary password to that one person through a private channel. They should sign in and use **Password → Change password** immediately. Do not put passwords in GitHub, this assistant chat, public messages, screenshots, spreadsheets, or reusable templates.
+3. Keep **Confirm Email** on and **Allow new users to sign up** off at the Supabase Auth level. This is an invite-only pilot, not public self-sign-up. Set a minimum password length of at least 12 in Supabase Auth settings and require the current password for changes; keep appropriate password sign-in rate limits. Until SMTP works, there is no email-based forgot-password flow; a project owner must verify the person out of band and reset access through the Auth admin controls.
+4. Create a Cloudflare Turnstile widget for the production domain. Set its **secret key in Supabase Auth's CAPTCHA settings**, not Vercel or GitHub. Enable CAPTCHA there. Set only its public site key in Vercel as `VITE_TURNSTILE_SITE_KEY`. Use a separate test widget for localhost. Both settings must be configured together or login will fail.
+5. Protect Supabase, Vercel, GitHub, and the account-creation channel with MFA. Do not share administrator accounts. Later, a verified domain and reliable custom SMTP can restore secure self-sign-up and email recovery; [Supabase password-auth guidance](https://supabase.com/docs/guides/auth/passwords) explains which flows still send email.
 
 ## 4. Import the repository into Vercel
 
@@ -45,7 +38,7 @@ No Supabase secret or Vercel token is required in GitHub Actions. Never put data
 Everything prefixed `VITE_` is bundled into browser JavaScript. Do not put any private secret in these fields. No backend secret is required in Vercel for this MVP.
 
 3. Deploy. After environment changes, redeploy: these variables are compiled at build time.
-4. In Supabase Authentication → URL Configuration, change **Site URL** from `http://localhost:3000` to the exact production URL, `https://umuzi-dusky.vercel.app/`. Add that exact URL to allowed Redirect URLs if needed; avoid broad wildcard redirects. The default email confirmation and magic-link flow redirects back to this URL. Umuzi's browser client consumes the sign-in tokens from the URL fragment and clears it; do not paste sign-in links into chats or logs. Update the Turnstile allowed hostname to match.
+4. In Supabase Authentication → URL Configuration, keep **Site URL** at the exact production URL, `https://umuzi-dusky.vercel.app/`. Add that exact URL to allowed Redirect URLs if needed; avoid broad wildcard redirects. Password sign-in does not redirect through email, but this URL remains important for future recovery or confirmation. Update the Turnstile allowed hostname to match.
 5. Review `vercel.json` security headers. Prefer narrowing `connect-src https://*.supabase.co` to your exact project hostname after setup. Do not weaken `script-src` with `unsafe-inline` or `unsafe-eval`. `style-src` allows inline styles for UI compatibility, not executable scripts.
 6. Use a separate Supabase project and SMTP/CAPTCHA test settings for preview/development deployments. Do not give unreviewed pull-request code production database access. Without preview variables, the app displays its safe setup screen.
 
@@ -53,9 +46,9 @@ See [Vercel's Vite deployment guide](https://vercel.com/docs/frameworks/frontend
 
 ## 5. Become the first administrator
 
-1. Open the deployed app, enter your project-team email, open the new confirmation/sign-in link from the same device, and submit your membership request. If a customized email includes a code instead, enter it in Umuzi. An old `localhost` link cannot be repaired by changing the address after it was sent; request a fresh link.
-2. In Supabase Authentication → Users, find **your own verified account** and copy its UUID. Do not use a ChatGPT/Sites account ID or choose another person's account.
-3. Open `supabase/bootstrap-admin.sql` in the Supabase SQL editor. Replace its UUID placeholder locally in the editor with your verified auth user ID. Review the target, then run it. The script fails if you have not verified your email and requested membership.
+1. In Supabase Authentication → Users, inspect whether your email already has an Auth account. **Do not create a duplicate**. Use its existing password if known; otherwise reset that account's password with the Auth admin controls, or provision a separate owner account you control. Do not use email reset/invitation while SMTP is broken. Sign in on Umuzi with email and password and submit your membership request.
+2. In Supabase Authentication → Users, find **your own confirmed account** and copy its UUID. Do not use a ChatGPT/Sites account ID or choose another person's account. Administrative confirmation is not evidence that the mailbox was verified.
+3. Open `supabase/bootstrap-admin.sql` in the Supabase SQL editor. Replace its UUID placeholder locally in the editor with your confirmed Auth user ID. Review the target, then run it. The script fails if you have not requested membership.
 4. Return to Umuzi and choose “Check approval.” Open Admin, set up an authenticator, and verify its code. Do not share or commit the setup QR code/secret.
 5. Add a second trusted administrator after they sign in and request access. In Admin, approve their account and then “Make admin.” They must set up their own authenticator. Admins cannot modify their own access through the app.
 
@@ -66,7 +59,8 @@ There is deliberately no “first signup becomes admin” shortcut. If an authen
 Use synthetic people and separate test accounts, not real sensitive records.
 
 - [ ] Fresh signed-out browser: no family names, claims, medical fields, or account lists are accessible, including via the REST API.
-- [ ] New verified account remains pending and cannot fetch `people` or mutate records directly.
+- [ ] Supabase Auth rejects a public self-sign-up request; manually created, confirmed accounts can sign in with a password and remain pending until approved.
+- [ ] Sign-in and password change work without a magic link. Invalid passwords fail; password reset is handled by the owner out of band until SMTP works.
 - [ ] Admin without authenticator verification cannot approve accounts/claims or read restricted data.
 - [ ] Admin approval lets the member see the tree. Claiming does not automatically edit or duplicate a person.
 - [ ] Approve a claim; only that claimant and verified admins can edit that profile. A competing claim cannot take over.
@@ -74,7 +68,7 @@ Use synthetic people and separate test accounts, not real sensitive records.
 - [ ] Re-enter the same name with different case/spaces: no duplicate is created. Review same-name different-person exceptions explicitly.
 - [ ] Reject a cycle and self-link; try a stale edit; confirm errors do not show a false save.
 - [ ] Suspended account loses access on its next API request even with an existing auth token. Already viewed content cannot be recalled.
-- [ ] Email link (and code, if configured), CAPTCHA, and authenticator setup work in desktop and mobile browsers. Inspect production CSP and HTTPS headers.
+- [ ] CAPTCHA and administrator authenticator setup work in desktop and mobile browsers. Inspect production CSP and HTTPS headers.
 - [ ] Restricted death information is absent from ordinary member responses and from shared biographies.
 - [ ] Create an encrypted backup and successfully restore it to a separate test project. Verify access rules after restore.
 
