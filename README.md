@@ -2,15 +2,15 @@
 
 A small, private family archive. Open-source code; private family data.
 
-**MVP status:** implemented and locally tested; a Supabase project and hosting configuration are required before real family signups. This repository contains no production database, keys, accounts, or real family records. It does not migrate data from an earlier prototype automatically.
+**MVP status:** the invite-only password pilot requires the Supabase Auth settings and first administrator setup in [DEPLOYMENT.md](DEPLOYMENT.md). The repository contains no secrets or family records and does not migrate an earlier prototype automatically.
 
 ## The family journey
 
-Email sign-in link (or code when configured) → request account approval → administrator approves → search the tree → request a profile claim → administrator verifies the claim.
+Administrator creates an account → relative signs in with email and password → requests access → administrator approves → searches the tree → requests a profile claim → administrator verifies the claim.
 
 An account and a person record are deliberately different things. Multiple relatives can connect an existing person without creating another person. Only an approved claimant or verified administrator can edit that person's profile. Approved members can add people and propose connections; administrators review connections before they appear.
 
-- Simple email-link signup and login, with optional email-code verification when configured; no password to remember.
+- Invite-only email-and-password login. Routine sign-in sends no email; relatives change temporary passwords after first sign-in. Public self-sign-up stays disabled until reliable email verification is available.
 - Pending, approved, declined, and suspended membership states.
 - Separate, revocable profile claims; one approved account per person and one person per account.
 - Search names, birthplaces, communities, and occupations.

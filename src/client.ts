@@ -12,7 +12,7 @@ export const supabase = configured
         storage: window.sessionStorage,
         persistSession: true,
         autoRefreshToken: true,
-        // The default Supabase emails link back to this browser-only app.
+        // Keep support for an existing recovery or confirmation link when email is restored.
         detectSessionInUrl: true,
         flowType: "implicit",
       },

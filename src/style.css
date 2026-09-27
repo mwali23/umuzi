@@ -285,6 +285,10 @@ summary:focus-visible,
   margin: auto;
   padding: 2.5rem 3%;
 }
+.password-settings {
+  max-width: 480px;
+  margin-bottom: 1.5rem;
+}
 .page-heading {
   display: flex;
   justify-content: space-between;
@@ -693,6 +697,9 @@ footer span {
   }
   .account > span {
     display: none;
+  }
+  .account {
+    gap: 0.5rem;
   }
   .welcome {
     grid-template-columns: 1fr;
